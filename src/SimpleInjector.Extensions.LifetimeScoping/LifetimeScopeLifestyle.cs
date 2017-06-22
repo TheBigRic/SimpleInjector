@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2015 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -23,6 +23,7 @@
 namespace SimpleInjector.Extensions.LifetimeScoping
 {
     using System;
+    using Lifestyles;
 
     /// <summary>
     /// Defines a lifestyle that caches instances during the lifetime of an explicitly defined scope using the
@@ -35,8 +36,9 @@ namespace SimpleInjector.Extensions.LifetimeScoping
     /// The following example shows the usage of the <b>LifetimeScopeLifestyle</b> class:
     /// <code lang="cs"><![CDATA[
     /// var container = new Container();
+    /// container.Options.DefaultScopedLifestyle = new LifetimeScopeLifestyle();
     /// 
-    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(new LifetimeScopeLifestyle());
+    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(Lifestyle.Scoped);
     /// 
     /// using (container.BeginLifetimeScope())
     /// {
@@ -63,17 +65,13 @@ namespace SimpleInjector.Extensions.LifetimeScoping
     /// }
     /// ]]></code>
     /// </example>
-    public sealed class LifetimeScopeLifestyle : ScopedLifestyle
+    [Obsolete("This lifestyle is obsolete. Please use SimpleInjector.Lifestyles.ThreadScopedLifestyle instead.", error: false)]
+    public sealed class LifetimeScopeLifestyle : ThreadScopedLifestyle
     {
-        internal static readonly LifetimeScopeLifestyle WithDisposal = new LifetimeScopeLifestyle(true);
-
-        internal static readonly LifetimeScopeLifestyle NoDisposal = new LifetimeScopeLifestyle(false);
-
         /// <summary>Initializes a new instance of the <see cref="LifetimeScopeLifestyle"/> class. The instance
         /// will ensure that created and cached instance will be disposed after the execution of the web
         /// request ended and when the created object implements <see cref="IDisposable"/>.</summary>
         public LifetimeScopeLifestyle()
-            : this(disposeInstanceWhenLifetimeScopeEnds: true)
         {
         }
 
@@ -83,9 +81,13 @@ namespace SimpleInjector.Extensions.LifetimeScoping
         /// <see cref="Scope"/> instance gets disposed and when the created object implements 
         /// <see cref="IDisposable"/>. 
         /// </param>
+        [Obsolete("This constructor has been deprecated. Please use LifetimeScopeLifestyle() instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public LifetimeScopeLifestyle(bool disposeInstanceWhenLifetimeScopeEnds)
-            : base("Lifetime Scope", disposeInstanceWhenLifetimeScopeEnds)
         {
+            throw new NotSupportedException(
+                "This constructor overload has been deprecated. Please use LifetimeScopeLifestyle() instead.");
         }
 
         /// <summary>
@@ -98,39 +100,14 @@ namespace SimpleInjector.Extensions.LifetimeScoping
         /// (Nothing in VB).</exception>
         /// <exception cref="InvalidOperationException">Will be thrown when there is currently no active
         /// lifetime scope in the supplied <paramref name="container"/> instance.</exception>
+        [Obsolete("WhenCurrentScopeEnds has been deprecated. " +
+            "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static void WhenCurrentScopeEnds(Container container, Action action)
         {
-            WithDisposal.WhenScopeEnds(container, action);
-        }
-
-        internal static LifetimeScopeLifestyle Get(bool withDisposal)
-        {
-            return withDisposal ? WithDisposal : NoDisposal;
-        }
-
-        /// <summary>
-        /// Returns the current <see cref="Scope"/> for this lifestyle and the given 
-        /// <paramref name="container"/>, or null when this method is executed outside the context of a scope.
-        /// </summary>
-        /// <param name="container">The container instance that is related to the scope to return.</param>
-        /// <returns>A <see cref="Scope"/> instance or null when there is no scope active in this context.</returns>
-        protected override Scope GetCurrentScopeCore(Container container)
-        {
-            return container.GetLifetimeScopeManager().CurrentScope;
-        }
-
-        /// <summary>
-        /// Creates a delegate that upon invocation return the current <see cref="Scope"/> for this
-        /// lifestyle and the given <paramref name="container"/>, or null when the delegate is executed outside
-        /// the context of such scope.
-        /// </summary>
-        /// <param name="container">The container for which the delegate gets created.</param>
-        /// <returns>A <see cref="Func{T}"/> delegate. This method never returns null.</returns>
-        protected override Func<Scope> CreateCurrentScopeProvider(Container container)
-        {
-            var manager = container.GetLifetimeScopeManager();
-
-            return () => manager.CurrentScope;
+            throw new NotSupportedException("WhenCurrentScopeEnds has been deprecated. " +
+                "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.");
         }
     }
 }

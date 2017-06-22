@@ -53,7 +53,7 @@ namespace SimpleInjector.Internals
 
         public void Add(InstanceProducer producer)
         {
-            this.container.ThrowWhenContainerIsLocked();
+            this.container.ThrowWhenContainerIsLockedOrDisposed();
             this.ThrowWhenConditionalAndUnconditionalAreMixed(producer);
             this.ThrowWhenConditionalIsRegisteredInOverridingMode(producer);
 
@@ -73,7 +73,7 @@ namespace SimpleInjector.Internals
         {
             Requires.IsNotNull(predicate, "only support conditional for now");
 
-            this.container.ThrowWhenContainerIsLocked();
+            this.container.ThrowWhenContainerIsLockedOrDisposed();
 
             if (this.UnconditionalProducers.Any())
             {
@@ -285,7 +285,7 @@ namespace SimpleInjector.Internals
                     throw new InvalidOperationException(StringResources.FactoryReturnedNull(this.serviceType));
                 }
 
-                if (implementationType.Info().ContainsGenericParameters)
+                if (implementationType.ContainsGenericParameters())
                 {
                     throw new ActivationException(
                         StringResources.TheTypeReturnedFromTheFactoryShouldNotBeOpenGeneric(
@@ -317,8 +317,7 @@ namespace SimpleInjector.Internals
             private InstanceProducer CreateNewProducerFor(PredicateContext context) =>
                 new InstanceProducer(
                     this.serviceType,
-                    this.lifestyle.CreateRegistration(context.ServiceType, context.ImplementationType, 
-                        this.container),
+                    this.lifestyle.CreateRegistration(context.ImplementationType, this.container),
                     this.predicate);
         }
     }

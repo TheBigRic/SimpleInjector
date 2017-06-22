@@ -2,11 +2,8 @@
 {
     using System;
     using System.Linq;
-    using System.Linq.Expressions;
-    using System.Reflection;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using SimpleInjector.Advanced;
-    using SimpleInjector.Extensions;
     using SimpleInjector.Tests.Unit;
 
     [TestClass]
@@ -110,7 +107,7 @@
                 this.Name = name;
             }
 
-            public string Name { get; private set; }
+            public string Name { get; }
         }
 
         public class NamedPluginConsumer
@@ -127,13 +124,13 @@
                 this.Plugin4 = plugin4;
             }
 
-            public IPlugin Plugin1 { get; private set; }
+            public IPlugin Plugin1 { get; }
 
-            public IPlugin Plugin2 { get; private set; }
+            public IPlugin Plugin2 { get; }
 
-            public IPlugin Plugin3 { get; private set; }
+            public IPlugin Plugin3 { get; }
 
-            public IPlugin Plugin4 { get; private set; }
+            public IPlugin Plugin4 { get; }
         }
 
         public class NamedDependencyInjectionBehavior : IDependencyInjectionBehavior
@@ -148,17 +145,16 @@
                 this.keyedProducerRetriever = keyedProducerRetriever;
             }
 
-            public Expression BuildExpression(InjectionConsumerInfo consumer)
+            public InstanceProducer GetInstanceProducer(InjectionConsumerInfo consumer, bool throwOnFailure)
             {
                 var attribute = consumer.Target.GetCustomAttribute<NamedAttribute>();
 
                 if (attribute != null)
                 {
-                    return this.keyedProducerRetriever(consumer.Target.TargetType, attribute.Name)
-                        .BuildExpression();
+                    return this.keyedProducerRetriever(consumer.Target.TargetType, attribute.Name);
                 }
 
-                return this.defaultBehavior.BuildExpression(consumer);
+                return this.defaultBehavior.GetInstanceProducer(consumer, throwOnFailure);
             }
 
             public void Verify(InjectionConsumerInfo consumer)

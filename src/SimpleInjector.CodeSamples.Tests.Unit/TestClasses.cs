@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     public interface ICommandHandler<TCommand>
     {
@@ -27,10 +26,13 @@
     {
     }
 
-    public class CommandWithDependency : ICommand
+    public class CommandWithILoggerDependency : ICommand
     {
-        public CommandWithDependency(ILogger logger)
+        public readonly ILogger Logger;
+
+        public CommandWithILoggerDependency(ILogger logger)
         {
+            this.Logger = logger;
         }
 
         public void Execute()
@@ -40,10 +42,6 @@
 
     public class ConcreteCommand : ICommand
     {
-        public ConcreteCommand()
-        {
-        }
-
         public void Execute()
         {
         }
@@ -60,6 +58,39 @@
     {
         public void Validate(T instance)
         {
+        }
+    }
+
+    public class LoggingValidator<T> : IValidator<T>
+    {
+        private readonly ILogger logger;
+        public LoggingValidator(ILogger logger)
+        {
+            this.logger = logger;
+        }
+
+        public void Validate(T instance)
+        {
+            this.logger.Log("Validating ");
+        }
+    }
+
+    public class LoggingValidatorDecorator<T> : IValidator<T>
+    {
+        private readonly ILogger logger;
+        private readonly IValidator<T> decoratee;
+
+        public LoggingValidatorDecorator(ILogger logger, IValidator<T> decoratee)
+        {
+            this.logger = logger;
+            this.decoratee = decoratee;
+        }
+
+        public void Validate(T instance)
+        {
+            this.logger.Log("Decorating ");
+            this.decoratee.Validate(instance);
+            this.logger.Log("Decorated ");
         }
     }
 
@@ -101,6 +132,16 @@
         public AnotherCommandHandlerDecorator(ICommandHandler<TCommand> decoratee)
         {
             this.Decoratee = decoratee;
+        }
+    }
+
+    public class RealCommandCommandHandlerWithDependency<TDependency> : ICommandHandler<RealCommand>
+    {
+        public readonly TDependency Dependency;
+
+        public RealCommandCommandHandlerWithDependency(TDependency dependency)
+        {
+            this.Dependency = dependency;
         }
     }
 

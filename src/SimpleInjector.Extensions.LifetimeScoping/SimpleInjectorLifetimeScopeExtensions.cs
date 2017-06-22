@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2014 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -25,204 +25,16 @@
 namespace SimpleInjector
 {
     using System;
-    using System.ComponentModel;
-    using System.Diagnostics.CodeAnalysis;
-    using SimpleInjector.Advanced;
+    using Lifestyles;
     using SimpleInjector.Extensions.LifetimeScoping;
-    
+
     /// <summary>
     /// Extension methods for enabling lifetime scoping for the Simple Injector.
     /// </summary>
-    public static class SimpleInjectorLifetimeScopeExtensions
+    public static partial class SimpleInjectorLifetimeScopeExtensions
     {
-        private static readonly object ManagerKey = new object();
+        private static readonly ScopedLifestyle Lifestyle = new ThreadScopedLifestyle();
 
-        /// <summary>This method is obsolete.</summary>
-        /// <param name="container">The container.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">Thrown when the container is locked.</exception>
-        [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "container",
-            Justification = "We can't remove the 'container' parameter. That would break the API.")]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete("LifetimeScoping is automatically enabled and there's no need to call this method anymore. " +
-            "Remove the call to this method.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        public static void EnableLifetimeScoping(this Container container)
-        {
-            throw new InvalidOperationException(
-                "LifetimeScoping is automatically enabled and there's no need to call this method anymore. " +
-                "Remove the call to this method.");
-        }
-
-        /// <summary>
-        /// Registers that a single instance of <typeparamref name="TConcrete"/> will be returned for
-        /// each lifetime scope that has been started using 
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>. When the 
-        /// lifetime scope is disposed and <typeparamref name="TConcrete"/> implements <see cref="IDisposable"/>,
-        /// the cached instance will be disposed as well.
-        /// Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TConcrete">The concrete type that will be registered.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when an 
-        /// the <typeparamref name="TConcrete"/> has already been registered.
-        /// </exception>
-        /// <exception cref="ArgumentException">Thrown when the <typeparamref name="TConcrete"/> is a type
-        /// that can not be created by the container.</exception>
-        public static void RegisterLifetimeScope<TConcrete>(this Container container)
-            where TConcrete : class
-        {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TConcrete, TConcrete>(LifetimeScopeLifestyle.WithDisposal);            
-        }
-
-        /// <summary>
-        /// Registers that a single instance of <typeparamref name="TImplementation"/> will be returned for
-        /// each lifetime scope that has been started using 
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>. When the 
-        /// lifetime scope is disposed and <typeparamref name="TImplementation"/> implements 
-        /// <see cref="IDisposable"/>, the cached instance will be disposed as well.
-        /// Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TService">The interface or base type that can be used to retrieve the instances.</typeparam>
-        /// <typeparam name="TImplementation">The concrete type that will be registered.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when an 
-        /// the <typeparamref name="TService"/> has already been registered.</exception>
-        /// <exception cref="ArgumentException">Thrown when the given <typeparamref name="TImplementation"/> 
-        /// type is not a type that can be created by the container.
-        /// </exception>
-        public static void RegisterLifetimeScope<TService, TImplementation>(
-            this Container container)
-            where TImplementation : class, TService
-            where TService : class
-        {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TService, TImplementation>(LifetimeScopeLifestyle.WithDisposal);            
-        }
-
-        /// <summary>
-        /// Registers the specified delegate that allows returning instances of <typeparamref name="TService"/>,
-        /// and returned instances are cached during the lifetime of a given scope that has been started using
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>. When the lifetime scope is disposed, and 
-        /// the cached instance implements <see cref="IDisposable"/>, that cached instance will be disposed as
-        /// well. Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TService">The interface or base type that can be used to retrieve instances.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <param name="instanceCreator">The delegate that allows building or creating new instances.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when either the <paramref name="container"/>, or <paramref name="instanceCreator"/> are
-        /// null references.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when the
-        /// <typeparamref name="TService"/> has already been registered.</exception>
-        public static void RegisterLifetimeScope<TService>(this Container container,
-            Func<TService> instanceCreator)
-            where TService : class
-        {
-            RegisterLifetimeScope<TService>(container, instanceCreator, disposeWhenLifetimeScopeEnds: true);
-        }
-        
-        /// <summary>
-        /// Registers that a single instance of <typeparamref name="TConcrete"/> will be returned for
-        /// each lifetime scope that has been started using 
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>. When the 
-        /// lifetime scope is disposed and <typeparamref name="TConcrete"/> implements <see cref="IDisposable"/>,
-        /// the cached instance will be disposed as well.
-        /// Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TConcrete">The concrete type that will be registered.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <param name="disposeWhenLifetimeScopeEnds">If set to <c>true</c> the cached instance will be
-        /// disposed at the end of its lifetime.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when an 
-        /// the <typeparamref name="TConcrete"/> has already been registered.
-        /// </exception>
-        /// <exception cref="ArgumentException">Thrown when the <typeparamref name="TConcrete"/> is a type
-        /// that can not be created by the container.</exception>
-        public static void RegisterLifetimeScope<TConcrete>(this Container container, 
-            bool disposeWhenLifetimeScopeEnds)
-            where TConcrete : class, IDisposable
-        {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TConcrete, TConcrete>(LifetimeScopeLifestyle.Get(disposeWhenLifetimeScopeEnds));
-        }
-
-        /// <summary>
-        /// Registers that a single instance of <typeparamref name="TImplementation"/> will be returned for
-        /// each lifetime scope that has been started using 
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>.  When the lifetime scope is disposed, 
-        /// <paramref name="disposeWhenLifetimeScopeEnds"/> is set to <b>true</b>, and the cached instance
-        /// implements <see cref="IDisposable"/>, that cached instance will be disposed as well.
-        /// Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TService">The interface or base type that can be used to retrieve the instances.</typeparam>
-        /// <typeparam name="TImplementation">The concrete type that will be registered.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <param name="disposeWhenLifetimeScopeEnds">If set to <c>true</c> the cached instance will be
-        /// disposed at the end of its lifetime.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when an 
-        /// the <typeparamref name="TService"/> has already been registered.</exception>
-        /// <exception cref="ArgumentException">Thrown when the given <typeparamref name="TImplementation"/> 
-        /// type is not a type that can be created by the container.
-        /// </exception>
-        public static void RegisterLifetimeScope<TService, TImplementation>(
-            this Container container, bool disposeWhenLifetimeScopeEnds)
-            where TImplementation : class, TService, IDisposable
-            where TService : class
-        {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TService, TImplementation>(LifetimeScopeLifestyle.Get(disposeWhenLifetimeScopeEnds));            
-        }
-
-        /// <summary>
-        /// Registers the specified delegate that allows returning instances of <typeparamref name="TService"/>,
-        /// and returned instances are cached during the lifetime of a given scope that has been started using
-        /// <see cref="BeginLifetimeScope">BeginLifetimeScope</see>. When the lifetime scope is disposed, 
-        /// <paramref name="disposeWhenLifetimeScopeEnds"/> is set to <b>true</b>, and the cached instance
-        /// implements <see cref="IDisposable"/>, that cached instance will be disposed as well.
-        /// Scopes can be nested, and each scope gets its own instance.
-        /// </summary>
-        /// <typeparam name="TService">The interface or base type that can be used to retrieve instances.</typeparam>
-        /// <param name="container">The container to make the registrations in.</param>
-        /// <param name="instanceCreator">The delegate that allows building or creating new instances.</param>
-        /// <param name="disposeWhenLifetimeScopeEnds">If set to <c>true</c> the cached instance will be
-        /// disposed at the end of its lifetime.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when either the <paramref name="container"/>, or <paramref name="instanceCreator"/> are
-        /// null references.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when this container instance is locked and can not be altered, or when the
-        /// <typeparamref name="TService"/> has already been registered.</exception>
-        public static void RegisterLifetimeScope<TService>(this Container container,
-            Func<TService> instanceCreator, bool disposeWhenLifetimeScopeEnds)
-            where TService : class
-        {
-            Requires.IsNotNull(container, nameof(container));
-            Requires.IsNotNull(instanceCreator, nameof(instanceCreator));
-
-            container.Register<TService>(instanceCreator, LifetimeScopeLifestyle.Get(disposeWhenLifetimeScopeEnds));            
-        }
-        
         /// <summary>
         /// Begins a new lifetime scope for the given <paramref name="container"/> on the current thread. 
         /// Services, registered with 
@@ -235,8 +47,6 @@ namespace SimpleInjector
         /// <returns>A new <see cref="Scope"/> instance.</returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the <paramref name="container"/> is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="EnableLifetimeScoping"/> has
-        /// not been called previously.</exception>
         /// <example>
         /// <code lang="cs"><![CDATA[
         /// using (container.BeginLifetimeScope())
@@ -247,11 +57,11 @@ namespace SimpleInjector
         /// }
         /// ]]></code>
         /// </example>
+        [Obsolete("This lifestyle is obsolete. Please use SimpleInjector.Lifestyles." + 
+            "ThreadScopedLifestyle.BeginScope(Container) instead.", error: false)]
         public static Scope BeginLifetimeScope(this Container container)
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            return container.GetLifetimeScopeManager().BeginLifetimeScope();
+            return ThreadScopedLifestyle.BeginScope(container);
         }
 
         /// <summary>
@@ -274,33 +84,13 @@ namespace SimpleInjector
         /// <returns>A new <see cref="Scope"/> instance.</returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the <paramref name="container"/> is a null reference.</exception>
+        [Obsolete("GetCurrentLifetimeScope has been deprecated. Please use " +
+            "SimpleInjector.Lifestyles.ThreadScopedLifestyle.GetCurrentScope(Container) instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static Scope GetCurrentLifetimeScope(this Container container)
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            return container.GetLifetimeScopeManager().CurrentScope;
-        }
-
-        // This method will never return null.
-        internal static LifetimeScopeManager GetLifetimeScopeManager(this Container container)
-        {
-            var manager = (LifetimeScopeManager)container.GetItem(ManagerKey);
-
-            if (manager == null)
-            {
-                lock (ManagerKey)
-                {
-                    manager = (LifetimeScopeManager)container.GetItem(ManagerKey);
-
-                    if (manager == null)
-                    {
-                        manager = new LifetimeScopeManager();
-                        container.SetItem(ManagerKey, manager);
-                    }
-                }
-            }
-
-            return manager;
+            return Lifestyle.GetCurrentScope(container);
         }
     }
 }

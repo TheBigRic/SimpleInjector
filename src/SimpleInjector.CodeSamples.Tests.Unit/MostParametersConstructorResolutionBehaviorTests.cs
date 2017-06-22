@@ -2,7 +2,6 @@
 {
     using System;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using SimpleInjector.Extensions;
     using SimpleInjector.Tests.Unit;
 
     [TestClass]
@@ -234,9 +233,9 @@
                 this.Command = command;
             }
 
-            public ILogger Logger { get; private set; }
+            public ILogger Logger { get; }
 
-            public ICommand Command { get; private set; }
+            public ICommand Command { get; }
 
             public void Dispose()
             {
@@ -299,7 +298,7 @@
                 this.WrappedValidator = validator;
             }
 
-            public IValidator<T> WrappedValidator { get; private set; }
+            public IValidator<T> WrappedValidator { get; }
 
             public void Validate(T instance)
             {

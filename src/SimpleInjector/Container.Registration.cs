@@ -138,14 +138,14 @@ namespace SimpleInjector
         {
             add
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.resolveUnregisteredType += value;
             }
 
             remove
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.resolveUnregisteredType -= value;
             }
@@ -266,14 +266,14 @@ namespace SimpleInjector
         {
             add
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.expressionBuilt += value;
             }
 
             remove
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.expressionBuilt -= value;
             }
@@ -370,14 +370,14 @@ namespace SimpleInjector
         {
             add
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.expressionBuilding += value;
             }
 
             remove
             {
-                this.ThrowWhenContainerIsLocked();
+                this.ThrowWhenContainerIsLockedOrDisposed();
 
                 this.expressionBuilding -= value;
             }
@@ -963,7 +963,7 @@ namespace SimpleInjector
         {
             Requires.IsNotNull(instanceInitializer, nameof(instanceInitializer));
 
-            this.ThrowWhenContainerIsLocked();
+            this.ThrowWhenContainerIsLockedOrDisposed();
 
             this.instanceInitializers.Add(TypedInstanceInitializer.Create(instanceInitializer));
         }
@@ -996,14 +996,40 @@ namespace SimpleInjector
         /// </para>
         /// </remarks>
         public void RegisterInitializer(Action<InstanceInitializationData> instanceInitializer,
-            Predicate<InitializationContext> predicate)
+            Predicate<InitializerContext> predicate)
         {
             Requires.IsNotNull(instanceInitializer, nameof(instanceInitializer));
             Requires.IsNotNull(predicate, nameof(predicate));
 
-            this.ThrowWhenContainerIsLocked();
+            this.ThrowWhenContainerIsLockedOrDisposed();
 
             this.instanceInitializers.Add(ContextualInstanceInitializer.Create(instanceInitializer, predicate));
+        }
+        
+        /// <summary>
+        /// Adds the <paramref name="registration"/> for the supplied <paramtyperef name="TService"/>. This
+        /// method can be used to apply the same <see cref="Registration"/> to multiple different service
+        /// types.
+        /// </summary>
+        /// <typeparam name="TService">The base type or interface to register.</typeparam>
+        /// <param name="registration">The registration that should be stored for the given 
+        /// <paramtyperef name="TService"/>.</param>
+        /// <exception cref="ArgumentNullException">Thrown when one of the supplied arguments is a null
+        /// reference (Nothing in VB).</exception>
+        /// <exception cref="ArgumentException">Thrown when <paramtyperef name="TService"/> is ambiguous, 
+        /// when it is not assignable from the 
+        /// <paramref name="registration"/>'s <see cref="Registration.ImplementationType">ImplementationType</see>
+        /// or when the supplied <paramref name="registration"/> is created for a different 
+        /// <see cref="Container"/> instance.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when this container instance is locked and can not be altered, or when an 
+        /// the <paramtyperef name="TService"/> has already been registered.
+        /// </exception>
+        public void AddRegistration<TService>(Registration registration) where TService : class
+        {
+            Requires.IsNotNull(registration, nameof(registration));
+
+            this.AddRegistrationInternal(typeof(TService), registration);
         }
 
         /// <summary>
@@ -1112,14 +1138,9 @@ namespace SimpleInjector
         {
             Requires.IsNotNull(serviceType, nameof(serviceType));
             Requires.IsNotNull(registration, nameof(registration));
-            Requires.IsRegistrationForThisContainer(this, registration, nameof(registration));
             Requires.IsNotOpenGenericType(serviceType, nameof(serviceType));
 
-            this.ThrowWhenContainerIsLocked();
-
-            var producer = new InstanceProducer(serviceType, registration);
-
-            this.AddInstanceProducer(producer);
+            this.AddRegistrationInternal(serviceType, registration);
         }
 
         internal void RegisterExternalProducer(InstanceProducer producer)
@@ -1153,12 +1174,12 @@ namespace SimpleInjector
 
             Requires.IsNotAnAmbiguousType(typeof(TService), serviceTypeParamName);
 
-            this.ThrowArgumentExceptionWhenTypeIsNotConstructable(typeof(TService), typeof(TImplementation),
+            this.ThrowArgumentExceptionWhenTypeIsNotConstructable(typeof(TImplementation),
                 implementationTypeParamName);
 
-            var registration = lifestyle.CreateRegistration<TService, TImplementation>(this);
+            var registration = lifestyle.CreateRegistration<TImplementation>(this);
 
-            this.AddRegistration(typeof(TService), registration);
+            this.AddRegistrationInternal(typeof(TService), registration);
         }
 
         private void Register(Type serviceType, Type implementationType, Lifestyle lifestyle,
@@ -1173,10 +1194,10 @@ namespace SimpleInjector
             
             Requires.IsNotAnAmbiguousType(serviceType, serviceTypeParamName);
 
-            this.ThrowArgumentExceptionWhenTypeIsNotConstructable(serviceType, implementationType,
+            this.ThrowArgumentExceptionWhenTypeIsNotConstructable(implementationType,
                 implementationTypeParamName);
 
-            if (serviceType.Info().ContainsGenericParameters)
+            if (serviceType.ContainsGenericParameters())
             {
                 this.RegisterOpenGeneric(serviceType, implementationType, lifestyle);
             }
@@ -1185,18 +1206,27 @@ namespace SimpleInjector
                 Requires.ServiceIsAssignableFromImplementation(serviceType, implementationType,
                     implementationTypeParamName);
 
-                var registration = lifestyle.CreateRegistration(serviceType, implementationType, this);
+                var registration = lifestyle.CreateRegistration(implementationType, this);
 
-                this.AddRegistration(serviceType, registration);
+                this.AddRegistrationInternal(serviceType, registration);
             }
         }
 
-        private void ThrowArgumentExceptionWhenTypeIsNotConstructable(Type serviceType, 
+        private void AddRegistrationInternal(Type serviceType, Registration registration)
+        {
+            Requires.IsRegistrationForThisContainer(this, registration, nameof(registration));
+
+            this.ThrowWhenContainerIsLockedOrDisposed();
+
+            this.AddInstanceProducer(new InstanceProducer(serviceType, registration));
+        }
+
+        private void ThrowArgumentExceptionWhenTypeIsNotConstructable(
             Type implementationType, string parameterName)
         {
             string message;
 
-            bool constructable = this.Options.IsConstructableType(serviceType, implementationType, out message);
+            bool constructable = this.Options.IsConstructableType(implementationType, out message);
 
             if (!constructable)
             {
@@ -1211,6 +1241,10 @@ namespace SimpleInjector
         
         private sealed class ContainerVerificationScope : Scope
         {
+            public ContainerVerificationScope(Container container) : base(container)
+            {
+            }
+
             public override void WhenScopeEnds(Action action)
             {
                 // No-op.

@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2015 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -70,6 +70,8 @@ namespace SimpleInjector
         {
             Requires.IsValidEnum(option, nameof(option));
 
+            this.ThrowWhenDisposed();
+
             bool diagnose = option == VerificationOption.VerifyAndDiagnose;
 
             this.VerifyInternal(suppressLifestyleMismatchVerification: diagnose);
@@ -80,15 +82,15 @@ namespace SimpleInjector
             }
         }
 
-#if NET45
+#if !NET40
+        // NOTE: IsVerifying is thread-specific. We return null is the container is verifying on a
+        // different thread.
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 #endif
-        internal Scope GetVerificationScopeForCurrentThread()
-        {
-            // NOTE: IsVerifying is thread-specific. We return null is the container is verifying on a
-            // different thread.
-            return this.VerificationScope != null && this.IsVerifying ? this.VerificationScope : null;
-        }
+        internal Scope GetVerificationScopeForCurrentThread() => 
+            this.VerificationScope != null && this.IsVerifying
+                ? this.VerificationScope
+                : null;
 
         private void VerifyInternal(bool suppressLifestyleMismatchVerification)
         {
@@ -96,9 +98,10 @@ namespace SimpleInjector
             // the first thread could dispose the verification scope, while the other thread is still using it.
             lock (this.isVerifying)
             {
+                this.LockContainer();
                 bool original = this.Options.SuppressLifestyleMismatchVerification;
                 this.IsVerifying = true;
-                this.VerificationScope = new ContainerVerificationScope();
+                this.VerificationScope = new ContainerVerificationScope(this);
 
                 try
                 {

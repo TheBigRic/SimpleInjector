@@ -30,28 +30,22 @@ namespace SimpleInjector.Lifestyles
         {
         }
 
-        protected override int Length
+        public override int Length
         {
             get { throw new NotSupportedException("The length property is not supported for this lifestyle."); }
         }
 
-        internal override int ComponentLength(Container container)
-        {
-            return Lifestyle.Singleton.ComponentLength(container);
-        }
+        internal override int ComponentLength(Container container) => Singleton.ComponentLength(container);
 
-        internal override int DependencyLength(Container container)
-        {
-            return Lifestyle.Transient.DependencyLength(container);
-        }
+        internal override int DependencyLength(Container container) => Transient.DependencyLength(container);
 
-        protected override Registration CreateRegistrationCore<TService, TImplementation>(Container container)
+        protected internal override Registration CreateRegistrationCore<TConcrete>(Container container)
         {
             throw new InvalidOperationException(
                 "The unknown lifestyle does not allow creation of registrations.");
         }
 
-        protected override Registration CreateRegistrationCore<TService>(Func<TService> instanceCreator, 
+        protected internal override Registration CreateRegistrationCore<TService>(Func<TService> instanceCreator, 
             Container container)
         {
             throw new InvalidOperationException(

@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -23,30 +23,32 @@
 namespace SimpleInjector.Integration.WebApi
 {
     using System;
-    using SimpleInjector.Extensions.ExecutionContextScoping;
+    using Lifestyles;
 
     /// <summary>
     /// Defines a lifestyle that caches instances during the execution of a single ASP.NET Web API Request.
     /// Unless explicitly stated otherwise, instances created by this lifestyle will be disposed at the end
-    /// of the Web API request. Do note that this lifestyle requires the <see cref="SimpleInjectorWebApiDependencyResolver"/>
-    /// to be registered in the Web API configuration.
+    /// of the Web API request. Do note that this lifestyle requires the 
+    /// <see cref="SimpleInjectorWebApiDependencyResolver"/> to be registered in the Web API configuration.
     /// </summary>
     /// <example>
     /// The following example shows the usage of the <b>WebApiRequestLifestyle</b> class:
     /// <code lang="cs"><![CDATA[
     /// var container = new Container();
-    /// 
-    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(new WebApiRequestLifestyle());
+    /// container.Options.DefaultScopedLifestyle = new WebApiRequestLifestyle();
+    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(Lifestyle.Scoped);
     /// ]]></code>
     /// </example>
-    public sealed class WebApiRequestLifestyle : ExecutionContextScopeLifestyle
+    [Obsolete("WebApiRequestLifestyle has been deprecated. " +
+        "Please use SimpleInjector.Lifestyles.AsyncScopedLifestyle instead.",
+        error: false)]
+    public sealed class WebApiRequestLifestyle : AsyncScopedLifestyle
     {
         /// <summary>Initializes a new instance of the <see cref="WebApiRequestLifestyle"/> class.
         /// The created and cached instance will be disposed when the Web API request ends, and when the 
         /// created object implements <see cref="IDisposable"/>.
         /// </summary>
         public WebApiRequestLifestyle()
-            : this(disposeInstanceWhenScopeEnds: true)
         {
         }
 
@@ -55,9 +57,14 @@ namespace SimpleInjector.Integration.WebApi
         /// Specifies whether the created and cached instance will be disposed when the Web API request ends,
         /// and when the created object implements <see cref="IDisposable"/>. 
         /// </param>
-        public WebApiRequestLifestyle(bool disposeInstanceWhenScopeEnds)
-            : base("Web API Request", disposeInstanceWhenScopeEnds)
+        [Obsolete("This constructor overload has been deprecated. " +
+            "Please use WebApiRequestLifestyle() instead.",
+            error: true)]
+        public WebApiRequestLifestyle(bool disposeInstanceWhenScopeEnds) : this()
         {
+            throw new NotSupportedException(
+                "This constructor overload has been deprecated. " +
+                "Please use WebApiRequestLifestyle() instead.");
         }
     }
 }

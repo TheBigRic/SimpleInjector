@@ -130,11 +130,9 @@ namespace SimpleInjector.Decorators
             }
         }
 
-        private static bool IsCollectionType(Type serviceType)
-        {
-            return typeof(IEnumerable<>).IsGenericTypeDefinitionOf(serviceType);
-        }
-        
+        private static bool IsCollectionType(Type serviceType) => 
+            typeof(IEnumerable<>).IsGenericTypeDefinitionOf(serviceType);
+
         private bool MustDecorate(Type serviceType, out Type decoratorType)
         {
             decoratorType = null;
@@ -176,9 +174,9 @@ namespace SimpleInjector.Decorators
         {
             Type decoratorType = this.data.DecoratorTypeFactory(context);
 
-            if (decoratorType.Info().ContainsGenericParameters)
+            if (decoratorType.ContainsGenericParameters())
             {
-                if (!requestedServiceType.Info().IsGenericType)
+                if (!requestedServiceType.IsGenericType())
                 {
                     throw new ActivationException(
                         StringResources.TheDecoratorReturnedFromTheFactoryShouldNotBeOpenGeneric(

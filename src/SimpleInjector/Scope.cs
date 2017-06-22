@@ -38,12 +38,36 @@ namespace SimpleInjector
         private const int MaxRecursion = 100;
 
         private readonly object syncRoot = new object();
+        private readonly ScopeManager manager;
 
+        private Dictionary<object, object> items;
         private Dictionary<Registration, object> cachedInstances;
         private List<Action> scopeEndActions;
         private List<IDisposable> disposables;
         private DisposeState state = DisposeState.Alive;
         private int recursionDuringDisposalCounter;
+
+        /// <summary>Initializes a new instance of the <see cref="Scope"/> class.</summary>
+        public Scope()
+        {
+        }
+
+        /// <summary>Initializes a new instance of the <see cref="Scope"/> class.</summary>
+        /// <param name="container">The container instance that the scope belongs to.</param>
+        public Scope(Container container)
+        {
+            Requires.IsNotNull(container, nameof(container));
+
+            this.Container = container;
+        }
+
+        internal Scope(Container container, ScopeManager manager, Scope parentScope) : this(container)
+        {
+            Requires.IsNotNull(manager, nameof(manager));
+
+            this.ParentScope = parentScope;
+            this.manager = manager;
+        }
 
         private enum DisposeState
         {
@@ -51,6 +75,14 @@ namespace SimpleInjector
             Disposing,
             Disposed
         }
+
+        /// <summary>Gets the container instance that this scope belongs to.</summary>
+        /// <value>The <see cref="Container"/> instance.</value>
+        public Container Container { get; }
+
+        internal bool Disposed => this.state == DisposeState.Disposed;
+
+        internal Scope ParentScope { get; }
 
         /// <summary>
         /// Allows registering an <paramref name="action"/> delegate that will be called when the scope ends,
@@ -114,6 +146,62 @@ namespace SimpleInjector
             }
         }
 
+        /// <summary>
+        /// Retrieves an item from the scope stored by the given <paramref name="key"/> or null when no
+        /// item is stored by that key.
+        /// </summary>
+        /// <remarks>
+        /// <b>Thread-safety:</b> Calls to this method are thread-safe, but users should take proper
+        /// percussions when they call both <b>GetItem</b> and <see cref="SetItem"/>.
+        /// </remarks>
+        /// <param name="key">The key of the item to retrieve.</param>
+        /// <returns>The stored item or null (Nothing in VB).</returns>
+        /// <exception cref="ArgumentNullException">Thrown when one of the supplied arguments is a null
+        /// reference (Nothing in VB).</exception>
+        public object GetItem(object key)
+        {
+            Requires.IsNotNull(key, nameof(key));
+
+            lock (this.syncRoot)
+            {
+                object value;
+                return this.items != null && this.items.TryGetValue(key, out value) 
+                    ? value 
+                    : null;
+            }
+        }
+
+        /// <summary>Stores an item by the given <paramref name="key"/> in the scope.</summary>
+        /// <remarks>
+        /// <b>Thread-safety:</b> Calls to this method are thread-safe, but users should take proper
+        /// percussions when they call both <see cref="GetItem"/> and <b>SetItem</b>.
+        /// </remarks>
+        /// <param name="key">The key of the item to insert or override.</param>
+        /// <param name="item">The actual item. May be null.</param>
+        /// <exception cref="ArgumentNullException">Thrown when paramref name="key"/> is a null reference 
+        /// (Nothing in VB).</exception>
+        public void SetItem(object key, object item)
+        {
+            Requires.IsNotNull(key, nameof(key));
+
+            lock (this.syncRoot)
+            {
+                if (this.items == null)
+                {
+                    this.items = new Dictionary<object, object>(capacity: 1);
+                }
+
+                if (object.ReferenceEquals(item, null))
+                {
+                    this.items.Remove(key);
+                }
+                else
+                {
+                    this.items[key] = item;
+                }
+            }
+        }
+
         /// <summary>Releases all instances that are cached by the <see cref="Scope"/> object.</summary>
         public void Dispose()
         {
@@ -121,20 +209,16 @@ namespace SimpleInjector
             GC.SuppressFinalize(this);
         }
 
-        internal static TService GetInstance<TService, TImplementation>(
-            ScopedRegistration<TService, TImplementation> registration, Scope scope)
-            where TImplementation : class, TService
-            where TService : class
+        internal static TImplementation GetInstance<TImplementation>(
+            ScopedRegistration<TImplementation> registration, Scope scope)
+            where TImplementation : class
         {
             if (scope == null)
             {
                 return GetScopelessInstance(registration);
             }
 
-            lock (scope.syncRoot)
-            {
-                return scope.GetInstance(registration);
-            }
+            return scope.GetInstanceInternal(registration);
         }
 
         // This method is called from within the test suite.
@@ -184,6 +268,8 @@ namespace SimpleInjector
                         this.cachedInstances = null;
                         this.scopeEndActions = null;
                         this.disposables = null;
+
+                        this.manager?.RemoveScope(this);
                     }
                 }
             }
@@ -247,72 +333,71 @@ namespace SimpleInjector
 
                 this.scopeEndActions = null;
 
-                actions.ForEach(action => action.Invoke());
+                foreach (var action in actions)
+                {
+                    action.Invoke();
+                }
             }
         }
 
-        private static TService GetScopelessInstance<TService, TImplementation>(
-            ScopedRegistration<TService, TImplementation> registration)
-            where TImplementation : class, TService
-            where TService : class
+        private static TImplementation GetScopelessInstance<TImplementation>(
+            ScopedRegistration<TImplementation> registration)
+            where TImplementation : class
         {
             if (registration.Container.IsVerifying())
             {
-                return registration.Container.VerificationScope
-                    .GetInstance<TService, TImplementation>(registration);
+                return registration.Container.VerificationScope.GetInstanceInternal(registration);
             }
 
             throw new ActivationException(
                 StringResources.TheServiceIsRequestedOutsideTheContextOfAScopedLifestyle(
-                    typeof(TService),
+                    typeof(TImplementation),
                     registration.Lifestyle));
         }
 
-        private TService GetInstance<TService, TImplementation>(
-            ScopedRegistration<TService, TImplementation> registration)
-            where TService : class
-            where TImplementation : class, TService
+        private TImplementation GetInstanceInternal<TImplementation>(
+            ScopedRegistration<TImplementation> registration)
+            where TImplementation : class
         {
-            this.RequiresInstanceNotDisposed();
-
-            bool cacheIsEmpty = this.cachedInstances == null;
-
-            if (this.cachedInstances == null)
+            lock (this.syncRoot)
             {
-                this.cachedInstances =
-                    new Dictionary<Registration, object>(ReferenceEqualityComparer<Registration>.Instance);
-            }
+                this.RequiresInstanceNotDisposed();
 
-            object instance;
+                bool cacheIsEmpty = this.cachedInstances == null;
 
-            return !cacheIsEmpty && this.cachedInstances.TryGetValue(registration, out instance)
-                ? (TService)instance
-                : this.CreateAndCacheInstance(registration);
-        }
-
-        private TService CreateAndCacheInstance<TService, TImplementation>(
-            ScopedRegistration<TService, TImplementation> registration)
-            where TService : class
-            where TImplementation : class, TService
-        {
-            TService service = registration.InstanceCreator.Invoke();
-
-            this.cachedInstances[registration] = service;
-
-            if (registration.RegisterForDisposal)
-            {
-                var disposable = service as IDisposable;
-
-                if (disposable != null)
+                if (this.cachedInstances == null)
                 {
-                    this.RegisterForDisposalInternal(disposable);
+                    this.cachedInstances =
+                        new Dictionary<Registration, object>(ReferenceEqualityComparer<Registration>.Instance);
                 }
-            }
 
-            return service;
+                object instance;
+
+                return !cacheIsEmpty && this.cachedInstances.TryGetValue(registration, out instance)
+                    ? (TImplementation)instance
+                    : this.CreateAndCacheInstance(registration);
+            }
         }
 
-#if NET45
+        private TImplementation CreateAndCacheInstance<TImplementation>(
+            ScopedRegistration<TImplementation> registration)
+            where TImplementation : class
+        {
+            TImplementation instance = registration.InstanceCreator.Invoke();
+
+            this.cachedInstances[registration] = instance;
+
+            var disposable = instance as IDisposable;
+
+            if (disposable != null)
+            {
+                this.RegisterForDisposalInternal(disposable);
+            }
+
+            return instance;
+        }
+
+#if !NET40
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 #endif
         private void RegisterForDisposalInternal(IDisposable disposable)
@@ -337,7 +422,7 @@ namespace SimpleInjector
             }
         }
 
-#if NET45
+#if !NET40
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 #endif
         private void RequiresInstanceNotDisposed()
@@ -353,7 +438,7 @@ namespace SimpleInjector
             throw new ObjectDisposedException(this.GetType().FullName);
         }
 
-#if NET45
+#if !NET40
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 #endif
         private void PreventCyclicDependenciesDuringDisposal()

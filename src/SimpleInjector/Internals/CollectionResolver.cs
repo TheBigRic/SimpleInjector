@@ -147,7 +147,7 @@ namespace SimpleInjector.Internals
 
             if (overlappingGroups.Any())
             {
-                if (!serviceType.Info().ContainsGenericParameters &&
+                if (!serviceType.ContainsGenericParameters() &&
                     overlappingGroups.Any(group => group.ServiceType == serviceType))
                 {
                     throw new InvalidOperationException(
@@ -163,8 +163,8 @@ namespace SimpleInjector.Internals
             from registrationGroup in this.RegistrationGroups
             where !registrationGroup.Appended
             where registrationGroup.ServiceType == serviceType
-                || serviceType.Info().ContainsGenericParameters
-                || registrationGroup.ServiceType.Info().ContainsGenericParameters
+                || serviceType.ContainsGenericParameters()
+                || registrationGroup.ServiceType.ContainsGenericParameters()
             select registrationGroup;
 
         protected sealed class RegistrationGroup

@@ -46,7 +46,7 @@ namespace SimpleInjector.Diagnostics
             // nestingLevel 2 returns: IEnumerable<IQueryHandler<MyQuery<T>, int[]>
             // nestingLevel 1 returns: IEnumerable<IQueryHandler<TQuery, TResult>>
             // nestingLevel 0 returns: IEnumerable<T>
-            if (!type.Info().IsGenericType)
+            if (!type.IsGenericType())
             {
                 return type;
             }

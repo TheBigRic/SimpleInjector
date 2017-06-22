@@ -1,6 +1,7 @@
 ﻿namespace SimpleInjector.CodeSamples.Tests.Unit
 {
     using System;
+    using System.Linq;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using SimpleInjector.Tests.Unit;
 
@@ -42,6 +43,84 @@
         }
 
         [TestMethod]
+        public void Intercept_Collection_InterceptsTheInstances()
+        {
+            var logger = new FakeLogger();
+
+            var container = new Container();
+
+            container.RegisterSingleton<ILogger>(logger);
+            container.RegisterCollection<ICommand>(new[] { typeof(ConcreteCommand), typeof(ConcreteCommand) });
+
+            container.InterceptWith<InterceptorThatLogsBeforeAndAfter>(IsACommandPredicate);
+
+            container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter>(i => i.BeforeText = "Log ");
+
+            // Act
+            var commands = container.GetAllInstances<ICommand>().ToList();
+
+            commands.ForEach(Execute);
+
+            // Assert
+            Assert.AreEqual("Log Log ", logger.Message);
+        }
+
+        [TestMethod]
+        public void Intercept_CollectionWithRegistrationInstances_InterceptsTheInstances()
+        {
+            var logger = new FakeLogger();
+
+            var container = new Container();
+
+            container.RegisterSingleton<ILogger>(logger);
+            container.RegisterCollection<ICommand>(new[]
+            {
+                Lifestyle.Transient.CreateRegistration(typeof(ConcreteCommand), container),
+                Lifestyle.Transient.CreateRegistration(typeof(ConcreteCommand), container),
+            });
+
+            container.InterceptWith<InterceptorThatLogsBeforeAndAfter>(IsACommandPredicate);
+
+            container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter>(i => i.BeforeText = "Log ");
+
+            // Act
+            var commands = container.GetAllInstances<ICommand>().ToList();
+
+            commands.ForEach(Execute);
+
+            // Assert
+            Assert.AreEqual("Log Log ", logger.Message);
+        }
+
+        [TestMethod]
+        public void Intercept_DecoratedGenericRegistrations_WorksLikeACharm()
+        {
+            // Arrange
+            var logger = new FakeLogger();
+
+            var container = new Container();
+
+            container.RegisterSingleton<ILogger>(logger);
+            container.Register<ICommand, CommandThatLogsOnExecute>();
+
+            container.Register(typeof(IValidator<>), typeof(LoggingValidator<>));
+
+            container.RegisterDecorator(typeof(IValidator<>), typeof(LoggingValidatorDecorator<>));
+
+            container.InterceptWith<InterceptorThatLogsBeforeAndAfter>(
+                t => t.IsInterface && t.Name.StartsWith("IValidator"));
+
+            container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter>(i => i.BeforeText = "Inercepting ");
+            container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter>(i => i.AfterText = "Intercepted ");
+
+            // Act
+            container.GetInstance<IValidator<RealCommand>>().Validate(new RealCommand());
+
+            // Assert
+            Assert.AreEqual("Inercepting Decorating Validating Decorated Intercepted ", logger.Message);
+        }
+
+        [TestMethod]
         public void InterceptWithGenericArgAndPredicate_TwoInterceptors_InterceptsTheInstanceWithBothInterceptors()
         {
             // Arrange
@@ -60,7 +139,7 @@
             container.RegisterInitializer<CommandThatLogsOnExecute>(c => c.ExecuteLogMessage = "Executing");
             container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter>(i => i.AfterText = " Done1");
             container.RegisterInitializer<InterceptorThatLogsBeforeAndAfter2>(i => i.AfterText = " Done2");
-            
+
             // Act
             var command = container.GetInstance<ICommand>();
 
@@ -175,7 +254,7 @@
 
             container.RegisterSingleton<ILogger>(logger);
             container.Register<ICommand, CommandThatLogsOnExecute>();
-            
+
             container.InterceptWith(singletonInterceptor, IsACommandPredicate);
 
             container.RegisterInitializer<CommandThatLogsOnExecute>(c => c.ExecuteLogMessage = "Executing");
@@ -377,7 +456,7 @@
                 "be transient, since the interceptor is created using a Func<T>, and there is no way to " +
                 "determine whether the delegate always returns the same or a new instance.");
         }
-        
+
         [TestMethod]
         public void InterceptWithFuncAndPredicate_InterceptingWithExpressionBuiltEventArgs_RunsSuccessfully()
         {
@@ -396,7 +475,7 @@
             command.Execute();
             logger.Log("foo");
         }
-        
+
         [TestMethod]
         public void InterceptWith_WithInterceptorWithNoPublicConstructor_ThrowsExpressiveException()
         {
@@ -468,7 +547,7 @@
             // Assert
             Assert.AreEqual(expectedReturnValue, actualReturnValue);
         }
-        
+
         [TestMethod]
         public void CallingInterceptedMethodWithRefArgument_InterceptedWithPassThroughInterceptor_PassesTheRefArgumentToTheInterceptee()
         {
@@ -493,7 +572,7 @@
             // Assert
             Assert.AreEqual(expectedRefValue, interceptee.SuppliedRefValue);
         }
-        
+
         [TestMethod]
         public void CallingInterceptedMethodWithRefArgument_InterceptedWithPassThroughInterceptor_ChangesTheRefValue()
         {
@@ -518,7 +597,7 @@
             // Assert
             Assert.AreEqual(expectedRefValue, actualRefValue);
         }
-        
+
         [TestMethod]
         public void CallingInterceptedMethodWithOutArgument_InterceptedWithPassThroughInterceptor_ReturnsTheExpectedOutValue()
         {
@@ -606,6 +685,8 @@
             Assert.AreEqual(expectedOutValue, actualOutValue);
         }
 
+        private static void Execute(ICommand command) => command.Execute();
+
         // Example interceptor
         private class InterceptorThatLogsBeforeAndAfter : IInterceptor
         {
@@ -653,7 +734,7 @@
                 invocation.Proceed();
             }
         }
-        
+
         private class DelegateInterceptor : IInterceptor
         {
             public event Action<IInvocation> Intercepting = _ => { };
@@ -743,7 +824,7 @@
                 }
             }
         }
-        
+
         private class WithOutAndRef : IWithOutAndRef
         {
             public string SuppliedRefValue { get; private set; }

@@ -79,7 +79,7 @@ namespace SimpleInjector.Diagnostics.Analyzers
             // dependency, which will make it look as if the decorator has too many dependencies. Since the
             // container will delegate the creation of those elements back to the container, those elements
             // would by them selves still get analyzed, so the only thing we'd miss here is the decorator.
-            if (!producer.ServiceType.Info().IsGenericType)
+            if (!producer.ServiceType.IsGenericType())
             {
                 return true;
             }
@@ -90,7 +90,7 @@ namespace SimpleInjector.Diagnostics.Analyzers
         private static string BuildRelationshipDescription(Type implementationType, int numberOfDependencies) =>
             string.Format(CultureInfo.InvariantCulture,
                 "{0} has {1} dependencies which might indicate a SRP violation.",
-                Helpers.ToFriendlyName(implementationType),
+                implementationType.ToFriendlyName(),
                 numberOfDependencies);
 
         private static string ViolationPlural(int count) => count == 1 ? "violation" : "violations";

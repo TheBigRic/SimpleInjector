@@ -157,16 +157,16 @@ namespace SimpleInjector
             Requires.IsNotPartiallyClosed(serviceType, nameof(serviceType), nameof(implementationType));
 
             Requires.ServiceOrItsGenericTypeDefinitionIsAssignableFromImplementation(serviceType, implementationType, nameof(serviceType));
-            Requires.ImplementationHasSelectableConstructor(this, serviceType, implementationType, nameof(implementationType));
+            Requires.ImplementationHasSelectableConstructor(this, implementationType, nameof(implementationType));
             Requires.OpenGenericTypeDoesNotContainUnresolvableTypeArguments(serviceType, implementationType, nameof(implementationType));
 
-            if (serviceType.Info().ContainsGenericParameters)
+            if (serviceType.ContainsGenericParameters())
             {
                 this.RegisterOpenGeneric(serviceType, implementationType, lifestyle, predicate);
             }
             else
             {
-                var registration = lifestyle.CreateRegistration(serviceType, implementationType, this);
+                var registration = lifestyle.CreateRegistration(implementationType, this);
                 this.RegisterConditional(serviceType, registration, predicate);
             }
         }
@@ -241,7 +241,7 @@ namespace SimpleInjector
             Requires.ServiceIsAssignableFromImplementation(serviceType, registration.ImplementationType,
                 nameof(serviceType));
 
-            this.ThrowWhenContainerIsLocked();
+            this.ThrowWhenContainerIsLockedOrDisposed();
             
             var producer = new InstanceProducer(serviceType, registration, predicate);
 

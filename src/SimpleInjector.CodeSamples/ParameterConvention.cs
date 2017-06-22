@@ -121,19 +121,15 @@
                 this.Type = parameterType;
             }
 
-            internal ParameterConvention Convention { get; private set; }
-
-            internal Type Type { get; private set; }
-
+            internal ParameterConvention Convention { get; }
+            internal Type Type { get; }
             internal string Name { get; set; }
-
             internal Expression Expression { get; set; }
         }
 
         private class ParameterDeclaringTypePair
         {
             internal Parameter Parameter { get; set; }
-
             internal Type DeclaringType { get; set; }
         }
     }

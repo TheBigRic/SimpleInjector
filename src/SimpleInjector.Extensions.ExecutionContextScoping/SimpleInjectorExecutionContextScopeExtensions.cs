@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2014 Simple Injector Contributors
+ * Copyright (c) 2014-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -28,15 +28,13 @@
 namespace SimpleInjector.Extensions.ExecutionContextScoping
 {
     using System;
-    using SimpleInjector.Advanced;
+    using SimpleInjector.Lifestyles;
 
     /// <summary>
     /// Extension methods for enabling execution context scoping for the Simple Injector.
     /// </summary>
     public static class SimpleInjectorExecutionContextScopeExtensions
     {
-        private static readonly object ManagerKey = new object();
-  
         /// <summary>
         /// Begins a new execution context scope for the given <paramref name="container"/>. 
         /// Services, registered using the <see cref="ExecutionContextScopeLifestyle"/> are cached during the 
@@ -56,60 +54,27 @@ namespace SimpleInjector.Extensions.ExecutionContextScoping
         /// }
         /// ]]></code>
         /// </example>
+        [Obsolete("BeginExecutionContextScope is obsolete. Please use SimpleInjector.Lifestyles." +
+            "AsyncScopedLifestyle.BeginScope(Container) instead.", error: false)]
         public static Scope BeginExecutionContextScope(this Container container)
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            return container.GetExecutionContextScopeManager().BeginExecutionContextScope();
+            return AsyncScopedLifestyle.BeginScope(container);
         }
 
         /// <summary>
-        /// Gets the Execution Context <see cref="Scope"/> that is currently in scope or <b>null</b> when no
-        /// <see cref="Scope"/> is currently in scope.
+        /// GetCurrentExecutionContextScope has been deprecated. This method throws an exception.
         /// </summary>
-        /// <example>
-        /// The following example registers a <b>ServiceImpl</b> type as transient (a new instance will be
-        /// returned every time) and registers an initializer for that type that will register that instance
-        /// for disposal in the <see cref="Scope"/> in which context it is created:
-        /// <code lang="cs"><![CDATA[
-        /// container.Register<IService, ServiceImpl>();
-        /// container.RegisterInitializer<ServiceImpl>(instance =>
-        /// {
-        ///     container.GetCurrentExecutionContextScope().RegisterForDisposal(instance);
-        /// });
-        /// ]]></code>
-        /// </example>
         /// <param name="container">The container.</param>
-        /// <returns>A new <see cref="Scope"/> instance.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the <paramref name="container"/> is a null reference.</exception>
+        /// <returns>This method throws an exception.</returns>
+        [Obsolete("GetCurrentExecutionContextScope has been deprecated. " +
+            "Please use Lifestyle.Scoped.GetCurrentScope(Container) instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static Scope GetCurrentExecutionContextScope(this Container container)
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            return container.GetExecutionContextScopeManager().CurrentScope;
-        }
-
-        // This method will never return null.
-        internal static ExecutionContextScopeManager GetExecutionContextScopeManager(this Container container)
-        {
-            var manager = (ExecutionContextScopeManager)container.GetItem(ManagerKey);
-
-            if (manager == null)
-            {
-                lock (ManagerKey)
-                {
-                    manager = (ExecutionContextScopeManager)container.GetItem(ManagerKey);
-
-                    if (manager == null)
-                    {
-                        manager = new ExecutionContextScopeManager();
-                        container.SetItem(ManagerKey, manager);
-                    }
-                }
-            }
-
-            return manager;
+            throw new NotSupportedException(
+                "GetCurrentExecutionContextScope has been deprecated. " +
+                "Please use Lifestyle.Scoped.GetCurrentScope(Container) instead.");
         }
     }
 }

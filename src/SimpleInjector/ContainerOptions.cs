@@ -72,19 +72,10 @@ namespace SimpleInjector
         private ILifestyleSelectionBehavior lifestyleBehavior;
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        private ScopedLifestyle defaultScopedLifestyle;
+        private Lifestyle defaultLifestyle = Lifestyle.Transient;
 
-        /// <summary>Initializes a new instance of the <see cref="ContainerOptions"/> class.</summary>
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete(
-            "This method is not supported anymore. Please use Container.Options to configure the container.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        public ContainerOptions()
-        {
-            throw new InvalidOperationException(
-                "This method is not supported anymore. Please use Container.Options to configure the container.");
-        }
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private ScopedLifestyle defaultScopedLifestyle;
 
         internal ContainerOptions(Container container)
         {
@@ -94,7 +85,7 @@ namespace SimpleInjector
             this.resolutionBehavior = new DefaultConstructorResolutionBehavior();
             this.injectionBehavior = new DefaultDependencyInjectionBehavior(container);
             this.propertyBehavior = new DefaultPropertySelectionBehavior();
-            this.lifestyleBehavior = new DefaultLifestyleSelectionBehavior(Lifestyle.Transient);
+            this.lifestyleBehavior = new DefaultLifestyleSelectionBehavior(this);
         }
 
         /// <summary>
@@ -120,14 +111,26 @@ namespace SimpleInjector
         /// mismatches.</value>
         public bool SuppressLifestyleMismatchVerification { get; set; }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether the container will return an empty collection when
-        /// a collection is requested that hasn't been explicitly registered. The default value is <b>false</b>,
-        /// which means that the container will throw an exception. Set the value to <b>true</b> to get the
-        /// old behavior of Simple Injector v1.x and v2.x.
-        /// </summary>
+        /// <summary>Gets or sets a value indicating whether. 
+        /// This method is deprecated. Changing its value will have no effect.</summary>
         /// <value>The value indicating whether the container will return an empty collection.</value>
+        [Obsolete("ResolveUnregisteredCollections has been deprecated. " + 
+            "Please register collections explicitly instead.",
+            error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public bool ResolveUnregisteredCollections { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether all the containers in the current AppDomain should throw
+        /// exceptions that contain fully qualified type name. The default is <c>false</c> which means
+        /// the type's namespace is omitted.
+        /// </summary>
+        /// <value>The value indicating whether exception message should emit full type names.</value>
+        public bool UseFullyQualifiedTypeNames
+        {
+            get { return StringResources.UseFullyQualifiedTypeNames; }
+            set { StringResources.UseFullyQualifiedTypeNames = value; }
+        }
 
         /// <summary>
         /// Gets or sets the constructor resolution behavior. By default, the container only supports types
@@ -149,39 +152,11 @@ namespace SimpleInjector
             {
                 Requires.IsNotNull(value, nameof(value));
 
-                this.ThrowWhenContainerHasRegistrations(nameof(ConstructorResolutionBehavior));
+                this.ThrowWhenContainerHasRegistrations(nameof(this.ConstructorResolutionBehavior));
 
                 this.resolutionBehavior = value;
             }
         }
-
-        /// <summary>
-        /// Gets or sets the constructor verification behavior. The container's default behavior is to
-        /// disallow constructors with value types and strings.
-        /// <b>NOTE:</b> This property has been removed. Please use the <see cref="ConstructorInjectionBehavior"/> 
-        /// property to override Simple Injector's verification behavior.
-        /// </summary>
-        /// <value>The constructor resolution behavior.</value>
-        [Obsolete("In v3, the IConstructorVerificationBehavior and IConstructorInjectionBehavior interfaces " +
-            "have been replaced with the single IDependencyInjectionBehavior interface. Please use the " +
-            "DependencyInjectionBehavior property to override Simple Injector's verification behavior.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public IConstructorVerificationBehavior ConstructorVerificationBehavior { get; set; }
-
-        /// <summary>Gets or sets the constructor injection behavior.</summary>
-        /// <value>The constructor injection behavior.</value>
-        /// <exception cref="NullReferenceException">Thrown when the supplied value is a null reference.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when the container already contains registrations.
-        /// </exception>
-        [Obsolete("In v3, the IConstructorVerificationBehavior and IConstructorInjectionBehavior interfaces " +
-            "have been replaced with the single IDependencyInjectionBehavior interface. Please use the " +
-            "DependencyInjectionBehavior property to override Simple Injector's constructor injection behavior.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        public IConstructorInjectionBehavior ConstructorInjectionBehavior { get; set; }
 
         /// <summary>Gets or sets the dependency injection behavior.</summary>
         /// <value>The constructor injection behavior.</value>
@@ -200,12 +175,12 @@ namespace SimpleInjector
             {
                 Requires.IsNotNull(value, nameof(value));
 
-                this.ThrowWhenContainerHasRegistrations(nameof(DependencyInjectionBehavior));
+                this.ThrowWhenContainerHasRegistrations(nameof(this.DependencyInjectionBehavior));
 
                 this.injectionBehavior = value;
             }
         }
-        
+
         /// <summary>
         /// Gets or sets the property selection behavior. The container's default behavior is to do no
         /// property injection.
@@ -226,7 +201,7 @@ namespace SimpleInjector
             {
                 Requires.IsNotNull(value, nameof(value));
 
-                this.ThrowWhenContainerHasRegistrations(nameof(PropertySelectionBehavior));
+                this.ThrowWhenContainerHasRegistrations(nameof(this.PropertySelectionBehavior));
 
                 this.propertyBehavior = value;
             }
@@ -251,9 +226,34 @@ namespace SimpleInjector
             {
                 Requires.IsNotNull(value, nameof(value));
 
-                this.ThrowWhenContainerHasRegistrations(nameof(LifestyleSelectionBehavior));
+                this.ThrowWhenContainerHasRegistrations(nameof(this.LifestyleSelectionBehavior));
 
                 this.lifestyleBehavior = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the default lifestyle that the container will use when a registration is
+        /// made when no lifestyle is supplied.</summary>
+        /// <value>The default lifestyle.</value>
+        /// <exception cref="NullReferenceException">Thrown when the supplied value is a null reference.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the container already contains registrations.
+        /// </exception>
+        public Lifestyle DefaultLifestyle
+        {
+            get
+            {
+                return this.defaultLifestyle;
+            }
+
+            set
+            {
+                Requires.IsNotNull(value, nameof(value));
+
+                this.ThrowWhenContainerHasRegistrations(nameof(this.DefaultLifestyle));
+
+                this.defaultLifestyle = value;
             }
         }
 
@@ -283,7 +283,7 @@ namespace SimpleInjector
                         nameof(value));
                 }
 
-                this.ThrowWhenContainerHasRegistrations(nameof(DefaultScopedLifestyle));
+                this.ThrowWhenContainerHasRegistrations(nameof(this.DefaultScopedLifestyle));
 
                 this.defaultScopedLifestyle = value;
             }
@@ -306,12 +306,9 @@ namespace SimpleInjector
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal int MaximumNumberOfNodesPerDelegate { get; set; } = 350;
-        
+
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        internal string DebuggerDisplayDescription
-        {
-            get { return this.ToString(); }
-        }
+        internal string DebuggerDisplayDescription => this.ToString();
 
         // This property enables a hidden hook to allow to get notified just before expression trees get
         // compiled. It isn't used internally, but enables debugging in case compiling expressions crashes 
@@ -370,7 +367,7 @@ namespace SimpleInjector
             Requires.IsNotNull(interceptor, nameof(interceptor));
             Requires.IsNotNull(predicate, nameof(predicate));
 
-            this.Container.ThrowWhenContainerIsLocked();
+            this.Container.ThrowWhenContainerIsLockedOrDisposed();
 
             this.Container.RegisterResolveInterceptor(interceptor, predicate);
         }
@@ -414,15 +411,15 @@ namespace SimpleInjector
             return string.Join(", ", descriptions);
         }
 
-        internal bool IsConstructableType(Type serviceType, Type implementationType, out string errorMessage)
+        internal bool IsConstructableType(Type implementationType, out string errorMessage)
         {
             errorMessage = null;
 
             try
             {
-                var constructor = this.SelectConstructor(serviceType, implementationType);
+                ConstructorInfo constructor = this.SelectConstructor(implementationType);
 
-                this.DependencyInjectionBehavior.Verify(serviceType, constructor);
+                this.DependencyInjectionBehavior.Verify(constructor);
             }
             catch (ActivationException ex)
             {
@@ -432,45 +429,42 @@ namespace SimpleInjector
             return errorMessage == null;
         }
 
-        internal ConstructorInfo SelectConstructor(Type serviceType, Type implementationType)
+        internal ConstructorInfo SelectConstructor(Type implementationType)
         {
-            var constructor = this.ConstructorResolutionBehavior.GetConstructor(serviceType, implementationType);
+            var constructor = this.ConstructorResolutionBehavior.GetConstructor(implementationType);
 
             if (constructor == null)
             {
                 throw new ActivationException(StringResources.ConstructorResolutionBehaviorReturnedNull(
-                    this.ConstructorResolutionBehavior, serviceType, implementationType));
+                    this.ConstructorResolutionBehavior, implementationType));
             }
 
             return constructor;
         }
 
-        internal Expression BuildParameterExpression(Type serviceType, Type implementationType, 
-            ParameterInfo parameter)
+        internal InstanceProducer GetInstanceProducerFor(InjectionConsumerInfo consumer)
         {
-            var consumer = new InjectionConsumerInfo(serviceType, implementationType, parameter);
+            var producer = this.DependencyInjectionBehavior.GetInstanceProducer(consumer, throwOnFailure: true);
 
-            Expression expression = this.DependencyInjectionBehavior.BuildExpression(consumer);
-
-            // Expression will only be null if a user created a custom IConstructorInjectionBehavior that
+            // Producer will only be null if a user created a custom IConstructorInjectionBehavior that
             // returned null.
-            if (expression == null)
+            if (producer == null)
             {
                 throw new ActivationException(StringResources.DependencyInjectionBehaviorReturnedNull(
                     this.DependencyInjectionBehavior));
             }
 
-            return expression;
+            return producer;
         }
 
-        internal Lifestyle SelectLifestyle(Type serviceType, Type implementationType)
+        internal Lifestyle SelectLifestyle(Type implementationType)
         {
-            var lifestyle = this.LifestyleSelectionBehavior.SelectLifestyle(serviceType, implementationType);
+            var lifestyle = this.LifestyleSelectionBehavior.SelectLifestyle(implementationType);
 
             if (lifestyle == null)
             {
                 throw new ActivationException(StringResources.LifestyleSelectionBehaviorReturnedNull(
-                    this.LifestyleSelectionBehavior, serviceType, implementationType));
+                    this.LifestyleSelectionBehavior, implementationType));
             }
 
             return lifestyle;

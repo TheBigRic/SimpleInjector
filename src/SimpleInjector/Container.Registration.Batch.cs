@@ -313,12 +313,12 @@ namespace SimpleInjector
                 from assembly in assemblies.Distinct()
                 where !assembly.IsDynamic
                 from type in GetTypesFromAssembly(assembly)
-                where Helpers.IsConcreteType(type)
-                where options.IncludeGenericTypeDefinitions || !type.Info().IsGenericTypeDefinition
-                where Helpers.ServiceIsAssignableFromImplementation(serviceType, type)
-                let ctor = this.SelectImplementationTypeConstructorOrNull(serviceType, type)
-                where ctor == null || options.IncludeDecorators || !Helpers.IsDecorator(serviceType, ctor)
-                where ctor == null || options.IncludeComposites || !Helpers.IsComposite(serviceType, ctor)
+                where Types.IsConcreteType(type)
+                where options.IncludeGenericTypeDefinitions || !type.IsGenericTypeDefinition()
+                where Types.ServiceIsAssignableFromImplementation(serviceType, type)
+                let ctor = this.SelectImplementationTypeConstructorOrNull(type)
+                where ctor == null || options.IncludeDecorators || !Types.IsDecorator(serviceType, ctor)
+                where ctor == null || options.IncludeComposites || !Types.IsComposite(serviceType, ctor)
                 select type;
 
             return types.ToArray();
@@ -341,15 +341,15 @@ namespace SimpleInjector
 
         private bool IsDecorator(Type openGenericServiceType, Type implemenationType)
         {
-            var ctor = this.SelectImplementationTypeConstructorOrNull(openGenericServiceType, implemenationType);
-            return ctor != null && Helpers.IsDecorator(openGenericServiceType, ctor);
+            var ctor = this.SelectImplementationTypeConstructorOrNull(implemenationType);
+            return ctor != null && Types.IsDecorator(openGenericServiceType, ctor);
         }
 
-        private ConstructorInfo SelectImplementationTypeConstructorOrNull(Type serviceType, Type implementationType)
+        private ConstructorInfo SelectImplementationTypeConstructorOrNull(Type implementationType)
         {
             try
             {
-                return this.Options.SelectConstructor(serviceType, implementationType);
+                return this.Options.SelectConstructor(implementationType);
             }
             catch (ActivationException)
             {
@@ -387,14 +387,14 @@ namespace SimpleInjector
 
         private Type[] GetNonGenericDecoratorsThatWereSkippedDuringBatchRegistration(Type serviceType)
         {
-            if (serviceType.Info().IsGenericType)
+            if (serviceType.IsGenericType())
             {
                 var typeDef = serviceType.GetGenericTypeDefinition();
 
                 if (this.skippedNonGenericDecorators.ContainsKey(typeDef))
                 {
                     return this.skippedNonGenericDecorators[typeDef]
-                        .Where(serviceType.IsAssignableFrom)
+                        .Where(t => serviceType.IsAssignableFrom(t))
                         .ToArray();
                 }
             }

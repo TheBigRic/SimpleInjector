@@ -23,7 +23,6 @@
 namespace SimpleInjector.Advanced
 {
     using System;
-    using System.Diagnostics.CodeAnalysis;
     using System.Reflection;
 
     /// <summary>
@@ -56,26 +55,10 @@ namespace SimpleInjector.Advanced
         {
             Requires.IsNotNull(container, nameof(container));
 
+            // Need to check, because IsVerifying will throw when its ThreadLocal<T> is disposed.
+            container.ThrowWhenDisposed();
+
             return container.IsVerifying;
-        }
-
-        /// <summary>This method has been removed.</summary>
-        /// <param name="container">The container.</param>
-        /// <typeparam name="TService">The type for with an initializer must be built.</typeparam>
-        /// <returns>An <see cref="Action{TService}"/> delegate or <b>null</b>.</returns>
-        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
-        [Obsolete(
-            "This method has been removed. Use Container.GetRegistration().Registration." +
-            "InitializeInstance instead to initialize an existing instance.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        public static Action<TService> GetInitializer<TService>(this Container container)
-        {
-            Requires.IsNotNull(container, nameof(container));
-
-            throw new InvalidOperationException(
-                "This method has been removed. Use Container.GetRegistration().Registration." +
-                "InitializeInstance instead to initialize an existing instance.");
         }
 
         /// <summary>
@@ -117,6 +100,27 @@ namespace SimpleInjector.Advanced
             Requires.IsNotNull(key, nameof(key));
 
             container.SetItem(key, item);
+        }
+
+        /// <summary>
+        /// Adds an item by the given <paramref name="key"/> in the container by using the specified function,
+        /// if the key does not already exist. This operation is atomic.
+        /// </summary>
+        /// <typeparam name="T">The Type of the item to create.</typeparam>
+        /// <param name="container">The container.</param>
+        /// <param name="key">The key of the item to insert or override.</param>
+        /// <param name="valueFactory">The function used to generate a value for the given key. The supplied
+        /// value of <paramref name="key"/> will be supplied to the function when called.</param>
+        /// <returns>The stored item or the item from the <paramref name="valueFactory"/>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when either <paramref name="container"/>,
+        /// <paramref name="key"/> or <paramref name="valueFactory"/> is a null reference (Nothing in VB).</exception>
+        public static T GetOrSetItem<T>(this Container container, object key, Func<Container, object, T> valueFactory)
+        {
+            Requires.IsNotNull(container, nameof(container));
+            Requires.IsNotNull(key, nameof(key));
+            Requires.IsNotNull(valueFactory, nameof(valueFactory));
+
+            return container.GetOrSetItem(key, valueFactory);
         }
 
         /// <summary>
@@ -186,12 +190,11 @@ namespace SimpleInjector.Advanced
             container.AppendToCollectionInternal(serviceType, implementationType);
         }
 
-        internal static void Verify(this IDependencyInjectionBehavior behavior, Type serviceType, 
-            ConstructorInfo constructor)
+        internal static void Verify(this IDependencyInjectionBehavior behavior, ConstructorInfo constructor)
         {
-            foreach (var parameter in constructor.GetParameters())
+            foreach (ParameterInfo parameter in constructor.GetParameters())
             {
-                behavior.Verify(new InjectionConsumerInfo(serviceType, constructor.DeclaringType, parameter));
+                behavior.Verify(new InjectionConsumerInfo(parameter));
             }
         }
     }

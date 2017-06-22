@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2014 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -36,21 +36,16 @@ namespace SimpleInjector.Integration.Wcf
     /// The following example shows the usage of the <b>WcfOperationLifestyle</b> class:
     /// <code lang="cs"><![CDATA[
     /// var container = new Container();
-    /// 
-    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(new WcfOperationLifestyle());
+    /// container.Options.DefaultScopedLifestyle = new WcfOperationLifestyle();
+    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(Lifestyle.Scoped);
     /// ]]></code>
     /// </example>
     public class WcfOperationLifestyle : ScopedLifestyle
     {
-        internal static readonly WcfOperationLifestyle WithDisposal = new WcfOperationLifestyle(true);
-
-        internal static readonly WcfOperationLifestyle NoDisposal = new WcfOperationLifestyle(false);
-
         /// <summary>Initializes a new instance of the <see cref="WcfOperationLifestyle"/> class. The instance
         /// will ensure that created and cached instance will be disposed after the execution of the web
         /// request ended and when the created object implements <see cref="IDisposable"/>.</summary>
-        public WcfOperationLifestyle() 
-            : this(disposeInstanceWhenOperationEnds: true)
+        public WcfOperationLifestyle() : base("WCF Operation")
         {
         }
 
@@ -59,9 +54,13 @@ namespace SimpleInjector.Integration.Wcf
         /// Specifies whether the created and cached instance will be disposed after the execution of the WCF
         /// operation ended and when the created object implements <see cref="IDisposable"/>. 
         /// </param>
-        public WcfOperationLifestyle(bool disposeInstanceWhenOperationEnds)
-            : base("WCF Operation", disposeInstanceWhenOperationEnds)
+        [Obsolete("This constructor has been deprecated. Please use WcfOperationLifestyle() instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public WcfOperationLifestyle(bool disposeInstanceWhenOperationEnds) : this()
         {
+            throw new NotSupportedException(
+                "This constructor has been deprecated. Please use WcfOperationLifestyle() instead.");
         }
 
         /// <summary>
@@ -74,9 +73,15 @@ namespace SimpleInjector.Integration.Wcf
         /// (Nothing in VB).</exception>
         /// <exception cref="InvalidOperationException">Will be thrown when there is currently no active
         /// WCF operation in the supplied <paramref name="container"/> instance.</exception>
+        [Obsolete("WhenWcfOperationEnds has been deprecated. " +
+            "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static void WhenWcfOperationEnds(Container container, Action action)
         {
-            WithDisposal.WhenScopeEnds(container, action);
+            throw new NotSupportedException(
+                "WhenWcfOperationEnds has been deprecated. " +
+                "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.");
         }
         
         internal static Scope GetCurrentScopeCore()
@@ -94,10 +99,7 @@ namespace SimpleInjector.Integration.Wcf
         /// </summary>
         /// <param name="container">The container instance that is related to the scope to return.</param>
         /// <returns>A <see cref="Scope"/> instance or null when there is no scope active in this context.</returns>
-        protected override Scope GetCurrentScopeCore(Container container)
-        {
-            return GetCurrentScopeCore();
-        }
+        protected override Scope GetCurrentScopeCore(Container container) => GetCurrentScopeCore();
 
         /// <summary>
         /// Creates a delegate that upon invocation return the current <see cref="Scope"/> for this

@@ -36,9 +36,12 @@ namespace SimpleInjector.Decorators
     internal static partial class DecoratorHelpers
     {
         private static readonly MethodInfo EnumerableSelectMethod =
-            GetGenericMethod(() => Enumerable.Select<int, int>(null, (Func<int, int>)null));
+            Helpers.GetGenericMethodDefinition(() => Enumerable.Select(null, (Func<int, int>)null));
 
-        // This method name does not describe what it does, but since the C# compiler will create a iterator
+        private static readonly MethodInfo DecoratorHelpersReadOnlyCollectionMethod =
+            Helpers.GetGenericMethodDefinition(() => ReadOnlyCollection<int>(null));
+
+        // This method name does not describe what it does, but since the C# compiler will create an iterator
         // type named after this method, it allows us to return a type that has a nice name that will show up
         // during debugging.
         public static IEnumerable<T> ReadOnlyCollection<T>(T[] collection)
@@ -51,7 +54,8 @@ namespace SimpleInjector.Decorators
 
         internal static IEnumerable MakeReadOnly(Type elementType, Array collection)
         {
-            var readOnlyCollection = typeof(DecoratorHelpers).GetMethod("ReadOnlyCollection")
+            var readOnlyCollection =
+                DecoratorHelpersReadOnlyCollectionMethod
                 .MakeGenericMethod(elementType)
                 .Invoke(null, new object[] { collection });
 
@@ -72,13 +76,6 @@ namespace SimpleInjector.Decorators
             }
 
             return registeredProducer.Registration.ImplementationType;
-        }
-
-        internal static MethodInfo GetGenericMethod(Expression<Action> methodCall)
-        {
-            var body = methodCall.Body as MethodCallExpression;
-
-            return body.Method.GetGenericMethodDefinition();
         }
 
         internal static void AddRange<T>(this Collection<T> collection, IEnumerable<T> range)
@@ -165,7 +162,7 @@ namespace SimpleInjector.Decorators
         internal static Type GetDecoratingBaseType(Type serviceType, ConstructorInfo decoratorConstructor)
         {
             var decoratorInterfaces =
-                from abstraction in Helpers.GetBaseTypeCandidates(serviceType, decoratorConstructor.DeclaringType)
+                from abstraction in Types.GetBaseTypeCandidates(serviceType, decoratorConstructor.DeclaringType)
                 where decoratorConstructor.GetParameters()
                     .Any(parameter => IsDecorateeParameter(parameter.ParameterType, abstraction))
                 select abstraction;
@@ -229,7 +226,7 @@ namespace SimpleInjector.Decorators
         // Checks if the given parameterType can function as the decorated instance of the given service type.
         internal static bool IsDecorateeFactoryDependencyParameter(Type parameterType, Type serviceType)
         {
-            if (!parameterType.Info().IsGenericType || parameterType.GetGenericTypeDefinition() != typeof(Func<>))
+            if (!parameterType.IsGenericType() || parameterType.GetGenericTypeDefinition() != typeof(Func<>))
             {
                 return false;
             }
@@ -245,23 +242,22 @@ namespace SimpleInjector.Decorators
 
         private sealed class ContainerControlledCollectionRegistration : Registration
         {
-            private readonly Type serviceType;
-
             internal ContainerControlledCollectionRegistration(Type serviceType,
                 IContainerControlledCollection collection, Container container)
                 : base(Lifestyle.Singleton, container)
             {
                 this.Collection = collection;
-                this.serviceType = serviceType;
+                this.ImplementationType = serviceType;
             }
 
-            public override Type ImplementationType => this.serviceType;
+            public override Type ImplementationType { get; }
 
             internal override bool MustBeVerified => !this.Collection.AllProducersVerified;
 
             internal IContainerControlledCollection Collection { get; }
 
-            public override Expression BuildExpression() => Expression.Constant(this.Collection, this.serviceType);
+            public override Expression BuildExpression() => 
+                Expression.Constant(this.Collection, this.ImplementationType);
 
             internal override KnownRelationship[] GetRelationshipsCore() => 
                 base.GetRelationshipsCore().Concat(this.Collection.GetRelationships()).ToArray();

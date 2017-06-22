@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2014 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -23,7 +23,6 @@
 namespace SimpleInjector.Integration.Web
 {
     using System;
-    using System.Collections.Generic;
     using System.Web;
 
     /// <summary>
@@ -35,22 +34,18 @@ namespace SimpleInjector.Integration.Web
     /// The following example shows the usage of the <b>WebRequestLifestyle</b> class:
     /// <code lang="cs"><![CDATA[
     /// var container = new Container();
-    /// 
-    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(new WebRequestLifestyle());
+    /// container.Options.DefaultScopedLifestyle = new WebRequestLifestyle();
+    /// container.Register<IUnitOfWork, EntityFrameworkUnitOfWork>(Lifestyle.Scoped);
     /// ]]></code>
     /// </example>
     public sealed class WebRequestLifestyle : ScopedLifestyle
     {
-        internal static readonly WebRequestLifestyle WithDisposal = new WebRequestLifestyle();
-
-        internal static readonly WebRequestLifestyle Disposeless = new WebRequestLifestyle(false);
-
         private static readonly object ScopeKey = new object();
 
         /// <summary>Initializes a new instance of the <see cref="WebRequestLifestyle"/> class. The instance
         /// will ensure that created and cached instance will be disposed after the execution of the web
         /// request ended and when the created object implements <see cref="IDisposable"/>.</summary>
-        public WebRequestLifestyle() : this(disposeInstanceWhenWebRequestEnds: true)
+        public WebRequestLifestyle() : base("Web Request")
         {
         }
 
@@ -59,9 +54,13 @@ namespace SimpleInjector.Integration.Web
         /// Specifies whether the created and cached instance will be disposed after the execution of the web
         /// request ended and when the created object implements <see cref="IDisposable"/>. 
         /// </param>
-        public WebRequestLifestyle(bool disposeInstanceWhenWebRequestEnds)
-            : base("Web Request", disposeInstanceWhenWebRequestEnds)
+        [Obsolete("This constructor has been deprecated. Please use WebRequestLifestyle() instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public WebRequestLifestyle(bool disposeInstanceWhenWebRequestEnds) : this()
         {
+            throw new NotSupportedException(
+                "This constructor has been deprecated. Please use WebRequestLifestyle() instead.");
         }
 
         /// <summary>
@@ -74,28 +73,29 @@ namespace SimpleInjector.Integration.Web
         /// (Nothing in VB).</exception>
         /// <exception cref="InvalidOperationException">Will be thrown when the current thread isn't running
         /// in the context of a web request.</exception>
+        [Obsolete("WhenCurrentRequestEnds has been deprecated. " +
+            "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.",
+            error: true)]
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static void WhenCurrentRequestEnds(Container container, Action action)
         {
-            WithDisposal.WhenScopeEnds(container, action);
-        }
-
-        internal static Lifestyle Get(bool disposeInstanceWhenWebRequestEnds)
-        {
-            return disposeInstanceWhenWebRequestEnds ? WithDisposal : Disposeless;
+            throw new NotSupportedException(
+                "WhenCurrentRequestEnds has been deprecated. " +
+                "Please use Lifestyle.Scoped.WhenScopeEnds(Container, Action) instead.");
         }
 
         internal static void CleanUpWebRequest(HttpContext context)
         {
             Requires.IsNotNull(context, nameof(context));
 
-            Scope scope = (Scope)context.Items[ScopeKey];
+            var scope = (Scope)context.Items[ScopeKey];
 
             if (scope != null)
             {
-                // NOTE: We explicitly don't remove the scope from the items dictionary, because if anything
+                // NOTE: We explicitly don't remove the object from the items dictionary, because if anything
                 // is resolved from the container after this point during the request, that would cause the
-                // creation of a new Scope, while will never be disposed. This would make it seem like the
-                // application is working, while instead we are failing silently. By not removing the scope,
+                // creation of a new Scope, that will never be disposed. This would make it seem like the
+                // application is working, while instead we are failing silently. By not removing the object,
                 // this will cause the Scope to throw an ObjectDisposedException once it is accessed after
                 // this point; effectively making the application to fail fast.
                 scope.Dispose();
@@ -108,10 +108,7 @@ namespace SimpleInjector.Integration.Web
         /// </summary>
         /// <param name="container">The container instance that is related to the scope to return.</param>
         /// <returns>A <see cref="Scope"/> instance or null when there is no scope active in this context.</returns>
-        protected override Scope GetCurrentScopeCore(Container container)
-        {
-            return GetCurrentScope(HttpContext.Current);
-        }
+        protected override Scope GetCurrentScopeCore(Container container) => GetOrCreateScope(container);
 
         /// <summary>
         /// Creates a delegate that upon invocation return the current <see cref="Scope"/> for this
@@ -124,17 +121,19 @@ namespace SimpleInjector.Integration.Web
         {
             Requires.IsNotNull(container, nameof(container));
 
-            return () => GetCurrentScope(HttpContext.Current);
+            return () => GetOrCreateScope(container);
         }
 
-        private static Scope GetCurrentScope(HttpContext context)
+        private static Scope GetOrCreateScope(Container container)
         {
+            HttpContext context = HttpContext.Current;
+
             if (context == null)
             {
                 return null;
             }
 
-            Scope scope = (Scope)context.Items[ScopeKey];
+            var scope = (Scope)context.Items[ScopeKey];
 
             if (scope == null)
             {

@@ -248,7 +248,7 @@ namespace SimpleInjector
                 // This happens when the user tries to resolve an internal type inside a (Silverlight) sandbox.
                 throw new ArgumentException(
                     StringResources.UnableToResolveTypeDueToSecurityConfiguration(serviceType, ex) +
-                    "\nparamName: " + nameof(serviceType), ex);
+                    Environment.NewLine + "paramName: " + nameof(serviceType), ex);
             }
         }
 
@@ -289,7 +289,7 @@ namespace SimpleInjector
         private void RegisterCollectionInternal(Type itemType, ContainerControlledItem[] controlledItems, 
             bool appending = false)
         {
-            this.ThrowWhenContainerIsLocked();
+            this.ThrowWhenContainerIsLockedOrDisposed();
 
             this.RegisterGenericContainerControlledCollection(itemType, controlledItems, appending);
         }

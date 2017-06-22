@@ -6,8 +6,10 @@
 *.user
 *.userosscache
 *.sln.docstates
+StyleCop.Cache
 *ncrunch*
 coverage/
+*project.lock.json
 
 # Security
 *.snk
@@ -202,3 +204,8 @@ FakesAssemblies/
 
 # Visual Studio 6 workspace options file
 *.opt
+
+# Included stuff
+!BuildTools/*.*
+!Shared Assemblies/*.*
+!Shared Silverlight Assemblies/*.*

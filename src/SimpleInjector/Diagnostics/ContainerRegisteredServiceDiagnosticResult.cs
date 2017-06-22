@@ -25,6 +25,7 @@ namespace SimpleInjector.Diagnostics
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
+    using System.Diagnostics;
     using System.Linq;
     using SimpleInjector.Advanced;
 
@@ -34,6 +35,7 @@ namespace SimpleInjector.Diagnostics
     /// lifestyle.
     /// For more information, see: https://simpleinjector.org/diaut.
     /// </summary>
+    [DebuggerDisplay("{" + nameof(DebuggerDisplay) + ", nq}")]
     public class ContainerRegisteredServiceDiagnosticResult : DiagnosticResult
     {
         internal ContainerRegisteredServiceDiagnosticResult(Type serviceType, string description,
@@ -47,6 +49,6 @@ namespace SimpleInjector.Diagnostics
         /// <summary>Gets a collection of <see cref="KnownRelationship"/> instances that describe all 
         /// container-registered dependencies for the given component.</summary>
         /// <value>List of <see cref="KnownRelationship"/> objects.</value>
-        public ReadOnlyCollection<KnownRelationship> Relationships { get; private set; }
+        public ReadOnlyCollection<KnownRelationship> Relationships { get; }
     }
 }

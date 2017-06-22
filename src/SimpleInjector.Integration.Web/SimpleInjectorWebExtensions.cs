@@ -1,7 +1,7 @@
 ﻿#region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013-2015 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -26,13 +26,15 @@ namespace SimpleInjector
 {
     using System;
     using System.ComponentModel;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Web;
     using SimpleInjector.Integration.Web;
 
     /// <summary>
     /// Extension methods for integrating Simple Injector with ASP.NET web applications.
     /// </summary>
+    [Obsolete("SimpleInjectorWebExtensions has been deprecated. " +
+        "See: https://simpleinjector.org/mvc",
+        error: true)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static class SimpleInjectorWebExtensions
     {
         /// <summary>
@@ -50,12 +52,18 @@ namespace SimpleInjector
         /// that can not be created by the container.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the <paramref name="container"/> is a null
         /// reference.</exception>
+        [Obsolete("RegisterPerWebRequest has been deprecated. " +
+            "Please use Register<TConcrete>(Lifestyle.Scoped) instead. " +
+            "See: https://simpleinjector.org/mvc",
+            error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void RegisterPerWebRequest<TConcrete>(this Container container)
             where TConcrete : class
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TConcrete, TConcrete>(WebRequestLifestyle.WithDisposal);
+            throw new NotSupportedException(
+                "RegisterPerWebRequest has been deprecated. " +
+                "Please use Register<TConcrete>(Lifestyle.Scoped) instead. " +
+                "See: https://simpleinjector.org/mvc");
         }
 
         /// <summary>
@@ -76,13 +84,19 @@ namespace SimpleInjector
         /// </exception>
         /// <exception cref="ArgumentNullException">Thrown when the <paramref name="container"/> is a null
         /// reference.</exception>
+        [Obsolete("RegisterPerWebRequest has been deprecated. " +
+            "Please use Register<TService, TImplementation>(Lifestyle.Scoped) instead. " +
+            "See: https://simpleinjector.org/mvc",
+            error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void RegisterPerWebRequest<TService, TImplementation>(this Container container)
             where TService : class
             where TImplementation : class, TService
         {
-            Requires.IsNotNull(container, nameof(container));
-
-            container.Register<TService, TImplementation>(WebRequestLifestyle.WithDisposal);
+            throw new NotSupportedException(
+                "RegisterPerWebRequest has been deprecated. " +
+                "Please use Register<TService, TImplementation>(Lifestyle.Scoped) instead. " +
+                "See: https://simpleinjector.org/mvc");
         }
 
         /// <summary>
@@ -100,13 +114,18 @@ namespace SimpleInjector
         /// <exception cref="ArgumentNullException">
         /// Thrown when either <paramref name="container"/> or <paramref name="instanceCreator"/> are null
         /// references.</exception>
+        [Obsolete("RegisterPerWebRequest has been deprecated. " +
+            "Please use Register<TService>(Func<TService>, Lifestyle.Scoped) instead. " +
+            "See: https://simpleinjector.org/mvc",
+            error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void RegisterPerWebRequest<TService>(this Container container,
             Func<TService> instanceCreator) where TService : class
         {
-            Requires.IsNotNull(container, nameof(container));
-            Requires.IsNotNull(instanceCreator, nameof(instanceCreator));
-
-            RegisterPerWebRequest(container, instanceCreator, disposeInstanceWhenWebRequestEnds: true);
+            throw new NotSupportedException(
+                "RegisterPerWebRequest has been deprecated. " +
+                "Please use Register<TService>(Func<TService>, Lifestyle.Scoped) instead. " +
+                "See: https://simpleinjector.org/mvc");
         }
 
         /// <summary>
@@ -127,31 +146,16 @@ namespace SimpleInjector
         /// <exception cref="ArgumentNullException">
         /// Thrown when either <paramref name="container"/> or <paramref name="instanceCreator"/> are null
         /// references.</exception>
+        [Obsolete("RegisterPerWebRequest has been deprecated. " +
+            "Please use Register<TService>(new WebRequestLifestyle(false)) instead to suppress disposal.",
+            error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void RegisterPerWebRequest<TService>(this Container container,
             Func<TService> instanceCreator, bool disposeInstanceWhenWebRequestEnds) where TService : class
         {
-            Requires.IsNotNull(container, nameof(container));
-            Requires.IsNotNull(instanceCreator, nameof(instanceCreator));
-            
-            container.Register<TService>(instanceCreator, 
-                WebRequestLifestyle.Get(disposeInstanceWhenWebRequestEnds));
-        }
-
-        /// <summary>This method is obsolete.</summary>
-        /// <param name="disposable">The disposable.</param>
-        [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "disposable",
-            Justification = "We can't remove the 'disposable' parameter. That would break the API.")]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete(
-            "This method is not supported anymore. Please call Scope.RegisterForDisposal on the " +
-            "request's current scope instance.",
-            error: true)]
-        [ExcludeFromCodeCoverage]
-        public static void RegisterForDisposal(IDisposable disposable)
-        {
-            throw new InvalidOperationException(
-                "This method is not supported anymore. Please call Scope.RegisterForDisposal on the " +
-                "request's current scope instance.");
+            throw new NotSupportedException(
+                "RegisterPerWebRequest has been deprecated. " +
+                "Please use Register<TService>(new WebRequestLifestyle(false)) instead to suppress disposal.");
         }
     }
 }

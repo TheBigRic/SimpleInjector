@@ -1,7 +1,7 @@
 #region Copyright Simple Injector Contributors
 /* The Simple Injector is an easy-to-use Inversion of Control library for .NET
  * 
- * Copyright (c) 2013 Simple Injector Contributors
+ * Copyright (c) 2013-2016 Simple Injector Contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
  * associated documentation files (the "Software"), to deal in the Software without restriction, including 
@@ -35,6 +35,7 @@ namespace SimpleInjector.Integration.Wcf
     public class SimpleInjectorServiceHost : ServiceHost
     {
         private readonly Container container;
+        private readonly Type serviceAbstraction;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SimpleInjectorServiceHost"/> class.
@@ -52,20 +53,49 @@ namespace SimpleInjector.Integration.Wcf
             this.container = container;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SimpleInjectorServiceHost"/> class.
+        /// </summary>
+        /// <param name="container">The container.</param>
+        /// <param name="singletonInstance">The instance of the hosted service.</param>
+        /// <param name="baseAddresses">The base addresses.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="container"/> is a null
+        /// reference or <paramref name="singletonInstance"/> is a null reference.</exception>
+        public SimpleInjectorServiceHost(Container container, object singletonInstance, 
+            params Uri[] baseAddresses)
+            : base(singletonInstance, baseAddresses)
+        {
+            Requires.IsNotNull(container, nameof(container));
+            Requires.IsNotNull(singletonInstance, nameof(singletonInstance));
+
+            this.container = container;
+        }
+
+        internal SimpleInjectorServiceHost(Container container, Type serviceAbstraction, Type implementationType,
+            params Uri[] baseAddresses)
+            : base(implementationType, baseAddresses)
+        {
+            Requires.IsNotNull(container, nameof(container));
+            Requires.IsNotNull(serviceAbstraction, nameof(serviceAbstraction));
+
+            this.container = container;
+            this.serviceAbstraction = serviceAbstraction;
+        }
+
         /// <summary>Gets the contracts implemented by the service hosted.</summary>
         /// <returns>The collection of <see cref="ContractDescription"/>s.</returns>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate",
             Justification = "The base class already has a protected ImplementedContracts property, " +
                 "so that name was already taken.")]
-        public IEnumerable<ContractDescription> GetImplementedContracts()
-        {
-            return this.ImplementedContracts.Values;
-        }
+        public IEnumerable<ContractDescription> GetImplementedContracts() => this.ImplementedContracts.Values;
 
         /// <summary>Opens the channel dispatchers.</summary>
         protected override void OnOpening()
         {
-            this.Description.Behaviors.Add(new SimpleInjectorServiceBehavior(this.container));
+            this.Description.Behaviors.Add(new SimpleInjectorServiceBehavior(this.container)
+            {
+                ServiceType = this.serviceAbstraction
+            });
 
             base.OnOpening();
         }
